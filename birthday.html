@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Happy Birthday Akka 🎁</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Space+Mono:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;1,300;1,500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --pink:    #ff6fa8;
+    --lavender:#c084fc;
+    --gold:    #f5c842;
+    --cream:   #fff8f0;
+    --dark:    #0a0a10;
+    --glow:    0 0 30px rgba(255,111,168,0.7), 0 0 80px rgba(192,132,252,0.4);
+  }
+
+  html, body { width:100%; height:100%; overflow:hidden; }
+
+  /* ─── CANVAS for particles ─── */
+  #bg-canvas {
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+  }
+
+  /* ─── SECTION BASE ─── */
+  .scene {
+    position:fixed; inset:0; display:flex;
+    flex-direction:column; align-items:center; justify-content:center;
+    z-index:10; opacity:0; pointer-events:none;
+    transition: opacity 0.8s ease;
+  }
+  .scene.active { opacity:1; pointer-events:all; }
+
+  /* ══════════════════════════════
+     SCENE 0 — NAME GATE
+  ══════════════════════════════ */
+  #scene-gate {
+    background: #000;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .gate-box {
+    position:relative; z-index:3;
+    border: 1px solid #00ffaa44;
+    border-radius: 14px;
+    padding: 44px 48px;
+    max-width: 480px; width: 90%;
+    background: rgba(0,255,170,0.03);
+    box-shadow: 0 0 60px rgba(0,255,170,0.1), inset 0 0 30px rgba(0,255,170,0.03);
+    display:flex; flex-direction:column; gap:20px;
+  }
+
+  .gate-title {
+    color:#00ffcc; font-size:clamp(11px,2.2vw,14px);
+    letter-spacing:3px; text-transform:uppercase;
+    line-height:1.8;
+  }
+  .gate-title .blink-dot { animation:blink 1s steps(1) infinite; }
+
+  .gate-label {
+    color:#00ffaa88; font-size:12px; letter-spacing:2px;
+    margin-bottom:6px;
+  }
+
+  .gate-input-wrap {
+    display:flex; align-items:center; gap:0;
+    border:1px solid #00ffaa44; border-radius:8px; overflow:hidden;
+    background: rgba(0,255,170,0.05);
+  }
+  .gate-prompt {
+    color:#00ffcc; padding:12px 14px; font-size:14px;
+    font-family:'Space Mono',monospace; user-select:none;
+  }
+  #name-input {
+    flex:1; background:transparent; border:none; outline:none;
+    color:#00ffcc; font-family:'Space Mono',monospace;
+    font-size:14px; padding:12px 8px 12px 0;
+    caret-color:#00ffcc; letter-spacing:1px;
+  }
+  #name-input::placeholder { color:#00ffaa33; }
+
+  .gate-btn {
+    background: linear-gradient(135deg,#00ffaa22,#00ffcc11);
+    border:1px solid #00ffaa66; border-radius:8px;
+    color:#00ffcc; font-family:'Space Mono',monospace;
+    font-size:13px; letter-spacing:2px; padding:13px 24px;
+    cursor:pointer; transition:all 0.2s;
+  }
+  .gate-btn:hover {
+    background: rgba(0,255,170,0.15);
+    box-shadow: 0 0 20px rgba(0,255,170,0.3);
+  }
+
+  .gate-error {
+    color:#ff4466; font-size:12px; letter-spacing:1px;
+    min-height:18px; animation: shakeX 0.4s ease;
+    display:none;
+  }
+  .gate-error.show { display:block; }
+  @keyframes shakeX {
+    0%,100% { transform:translateX(0); }
+    20%,60% { transform:translateX(-8px); }
+    40%,80% { transform:translateX(8px); }
+  }
+
+  .gate-hint {
+    color:#00ffaa33; font-size:11px; letter-spacing:1px;
+    text-align:center;
+  }
+
+  /* ══════════════════════════════
+  ══════════════════════════════ */
+  #scene-terminal {
+    background: #000;
+    font-family: 'Space Mono', monospace;
+    padding: 30px 20px;
+  }
+
+  .scanline {
+    position:absolute; inset:0; pointer-events:none;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px, transparent 2px,
+      rgba(0,255,180,0.03) 2px, rgba(0,255,180,0.03) 4px
+    );
+    animation: scanMove 8s linear infinite;
+    z-index:1;
+  }
+  @keyframes scanMove {
+    0%   { background-position-y: 0; }
+    100% { background-position-y: 200px; }
+  }
+
+  .crt-glow {
+    position:absolute; inset:0; pointer-events:none;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.8) 100%);
+    z-index:2;
+  }
+
+  #terminal-box {
+    position:relative; z-index:3;
+    border: 1px solid #00ffaa44;
+    border-radius: 12px;
+    padding: 40px 50px;
+    max-width: 620px; width: 90%;
+    background: rgba(0,255,170,0.03);
+    box-shadow: 0 0 60px rgba(0,255,170,0.1), inset 0 0 30px rgba(0,255,170,0.03);
+  }
+
+  .terminal-header {
+    display:flex; align-items:center; gap:8px; margin-bottom:24px;
+  }
+  .dot { width:12px; height:12px; border-radius:50%; }
+  .dot.r { background:#ff5f57; }
+  .dot.y { background:#ffbd2e; }
+  .dot.g { background:#28ca41; }
+  .terminal-title {
+    margin-left:8px; font-size:12px; color:#00ffaa88;
+    letter-spacing:3px; text-transform:uppercase;
+  }
+
+  #typed-text {
+    color: #00ffcc;
+    font-size: clamp(12px, 2.5vw, 15px);
+    line-height: 2;
+    white-space: pre-wrap;
+    min-height: 200px;
+  }
+
+  .cursor-blink {
+    display:inline-block; width:9px; height:1.2em;
+    background:#00ffcc; vertical-align:text-bottom;
+    animation: blink 1s steps(1) infinite;
+    margin-left:2px;
+  }
+  @keyframes blink { 50% { opacity:0; } }
+
+  .progress-bar-wrap {
+    display:inline-block; color:#00ffcc; font-size:inherit;
+  }
+
+  /* ─── Gift trigger ─── */
+  #gift-trigger {
+    position:relative; z-index:3; margin-top:40px;
+    display:none; flex-direction:column; align-items:center; gap:12px;
+    animation: floatGift 2.4s ease-in-out infinite;
+    cursor:pointer;
+  }
+  @keyframes floatGift {
+    0%,100% { transform:translateY(0); }
+    50%      { transform:translateY(-18px); }
+  }
+  #gift-trigger:hover .gift-svg { filter: drop-shadow(0 0 24px #ff6fa8) drop-shadow(0 0 48px #c084fc); transform:scale(1.08); }
+  .gift-svg { width:120px; height:120px; transition: filter 0.3s, transform 0.3s; filter: drop-shadow(0 0 16px #ff6fa8aa); }
+  .gift-label {
+    font-family:'Space Mono', monospace; font-size:13px; color:#00ffcc88;
+    letter-spacing:3px; animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { opacity:0.3; } }
+
+  /* ══════════════════════════════
+     BURST OVERLAY
+  ══════════════════════════════ */
+  #burst-overlay {
+    position:fixed; inset:0; z-index:100;
+    background: radial-gradient(circle at center, #fff 0%, #ffd6e0 30%, transparent 70%);
+    opacity:0; pointer-events:none;
+    transition: opacity 0.15s ease;
+  }
+  #burst-overlay.flash { opacity:1; }
+
+  /* ══════════════════════════════
+     SCENE 2 — FINAL REVEAL
+  ══════════════════════════════ */
+  #scene-reveal {
+    background: transparent;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 30px 20px 60px;
+    -webkit-overflow-scrolling: touch;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .reveal-inner {
+    display:flex; flex-direction:column;
+    align-items:center; gap:28px;
+    max-width:500px; width:100%; margin:0 auto;
+    padding-top: 20px;
+  }
+
+  /* Pastel gradient bg that pulses */
+  #pastel-bg {
+    position:fixed; inset:0; z-index:5;
+    background: linear-gradient(135deg, #ffd6e0 0%, #e6ccff 40%, #fce4ec 70%, #dceeff 100%);
+    background-size:400% 400%;
+    animation: bgShift 12s ease infinite;
+  }
+  @keyframes bgShift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* heading */
+  .reveal-heading {
+    font-family:'Playfair Display', serif;
+    font-size: clamp(28px, 7vw, 52px);
+    color: #8b3a62;
+    text-shadow: 0 2px 20px rgba(255,111,168,0.4);
+    text-align:center; line-height:1.2;
+    animation: fadeSlideDown 1s ease forwards;
+  }
+  .reveal-heading span { color:#c084fc; font-style:italic; }
+
+  @keyframes fadeSlideDown {
+    from { opacity:0; transform:translateY(-30px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+
+  /* collage frame */
+  .collage-frame {
+    position:relative; width:min(80vw, 340px);
+    animation: zoomReveal 1.2s cubic-bezier(0.22,1,0.36,1) 0.3s both, floatPhoto 5s ease-in-out 1.5s infinite;
+    flex-shrink:0;
+  }
+  @keyframes zoomReveal {
+    from { opacity:0; transform:scale(0.2) rotate(-4deg); }
+    to   { opacity:1; transform:scale(1) rotate(0deg); }
+  }
+  @keyframes floatPhoto {
+    0%,100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-12px) rotate(0.5deg); }
+  }
+
+  .collage-frame::before {
+    content:''; position:absolute; inset:-6px; border-radius:30px;
+    background: linear-gradient(135deg, #ff6fa8, #c084fc, #f5c842, #ff6fa8);
+    background-size:300% 300%;
+    animation: borderGlow 4s linear infinite;
+    z-index:-1;
+    filter:blur(8px); opacity:0.85;
+  }
+  @keyframes borderGlow {
+    0%   { background-position:0% 50%; }
+    50%  { background-position:100% 50%; }
+    100% { background-position:0% 50%; }
+  }
+
+  .collage-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 24px;
+    border: 4px solid rgba(255,255,255,0.6);
+    box-shadow: 0 20px 60px rgba(140,58,98,0.3), 0 0 0 1px rgba(255,255,255,0.4);
+  }
+
+  /* hearts floating from collage */
+  .heart-float {
+    position:absolute; font-size:18px;
+    animation: heartRise linear infinite;
+    pointer-events:none; opacity:0;
+    bottom:10px;
+  }
+  @keyframes heartRise {
+    0%   { opacity:0; transform:translateY(0) scale(0.5); }
+    20%  { opacity:1; }
+    100% { opacity:0; transform:translateY(-160px) scale(1.2); }
+  }
+
+  /* message */
+  .message-card {
+    background: rgba(255,255,255,0.55);
+    backdrop-filter:blur(16px);
+    border:1px solid rgba(255,255,255,0.8);
+    border-radius:24px;
+    padding:28px 30px;
+    font-family:'Cormorant Garamond', serif;
+    font-size: clamp(16px, 4vw, 20px);
+    font-style:italic;
+    line-height:1.9;
+    color:#5a2040;
+    text-align:center;
+    box-shadow: 0 10px 40px rgba(192,132,252,0.2);
+    animation: fadeSlideUp 1s ease 1.2s both;
+    width:100%;
+  }
+  @keyframes fadeSlideUp {
+    from { opacity:0; transform:translateY(30px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  .message-card .highlight {
+    font-style:normal; font-weight:600; color:#b0398c; font-size:1.05em;
+  }
+
+  /* signature */
+  .signature {
+    font-family:'Playfair Display', serif;
+    font-size: clamp(13px, 3vw, 16px);
+    color: #7a3060aa;
+    text-align:center;
+    letter-spacing:1px;
+    animation: fadeIn 1s ease 2s both;
+  }
+  .signature strong { color:#c084fc; }
+
+  @keyframes fadeIn {
+    from { opacity:0; }
+    to   { opacity:1; }
+  }
+
+  /* music note corner */
+  .music-note {
+    position:fixed; bottom:18px; right:20px; z-index:200;
+    font-size:24px; cursor:pointer; opacity:0.7;
+    animation: musicPop 2s ease-in-out infinite;
+    filter:drop-shadow(0 0 6px #ff6fa8);
+  }
+  @keyframes musicPop {
+    0%,100% { transform:scale(1) rotate(-5deg); }
+    50%      { transform:scale(1.15) rotate(5deg); }
+  }
+  .music-note.muted { opacity:0.3; }
+
+  /* ─── sparkle CSS particles ─── */
+  .sparkle-el {
+    position:fixed; border-radius:50%; pointer-events:none;
+    background:white; z-index:6;
+    animation: sparkleFly linear forwards;
+  }
+  @keyframes sparkleFly {
+    0%   { opacity:0; transform:scale(0) translateY(0); }
+    20%  { opacity:1; transform:scale(1) translateY(0); }
+    100% { opacity:0; transform:scale(0.3) translateY(-120px); }
+  }
+
+  /* ─── Responsive ─── */
+  @media (max-width:480px) {
+    #terminal-box { padding:28px 22px; }
+    .collage-frame { width:min(90vw, 300px); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Particle canvas -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- Burst flash overlay -->
+<div id="burst-overlay"></div>
+
+<!-- ════ SCENE 0: NAME GATE ════ -->
+<div class="scene active" id="scene-gate">
+  <div class="scanline"></div>
+  <div class="crt-glow"></div>
+  <div class="gate-box">
+    <div class="gate-title">
+      ██ BIRTHDAY_OS v2.4.1 ██<br>
+      IDENTITY VERIFICATION REQUIRED<span class="blink-dot">_</span>
+    </div>
+    <div>
+      <div class="gate-label">» ENTER AUTHORIZED NAME TO PROCEED</div>
+      <div class="gate-input-wrap">
+        <span class="gate-prompt">user@birthday:~$</span>
+        <input type="text" id="name-input" placeholder="type your name..." autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')checkName()">
+      </div>
+    </div>
+    <div class="gate-error" id="gate-error">⛔ ACCESS DENIED — Unauthorized identity. Try again.</div>
+    <button class="gate-btn" onclick="checkName()">[ VERIFY IDENTITY ]</button>
+    <div class="gate-hint">hint: only one name unlocks this surprise 🔒</div>
+  </div>
+</div>
+
+<!-- ════ SCENE 1: TERMINAL ════ -->
+<div class="scene" id="scene-terminal">
+  <div class="scanline"></div>
+  <div class="crt-glow"></div>
+  <div id="terminal-box">
+    <div class="terminal-header">
+      <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      <span class="terminal-title">BIRTHDAY_OS v2.4.1</span>
+    </div>
+    <div id="typed-text"><span class="cursor-blink"></span></div>
+  </div>
+  <div id="gift-trigger" onclick="openGift()">
+    <svg class="gift-svg" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="box-grad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#ff6fa8"/>
+          <stop offset="100%" stop-color="#c084fc"/>
+        </linearGradient>
+        <linearGradient id="lid-grad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f5c842"/>
+          <stop offset="100%" stop-color="#ff9a4e"/>
+        </linearGradient>
+        <filter id="glow-filter">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <!-- box body -->
+      <rect x="15" y="55" width="90" height="55" rx="6" fill="url(#box-grad)" filter="url(#glow-filter)"/>
+      <!-- box lid -->
+      <rect x="10" y="42" width="100" height="18" rx="5" fill="url(#lid-grad)" filter="url(#glow-filter)"/>
+      <!-- ribbon vertical -->
+      <rect x="54" y="42" width="12" height="68" rx="4" fill="#fff5" />
+      <!-- ribbon horizontal -->
+      <rect x="10" y="48" width="100" height="6" rx="3" fill="#fff5" />
+      <!-- bow left -->
+      <ellipse cx="42" cy="42" rx="18" ry="10" fill="#f5c842" transform="rotate(-25 42 42)" filter="url(#glow-filter)"/>
+      <!-- bow right -->
+      <ellipse cx="78" cy="42" rx="18" ry="10" fill="#f5c842" transform="rotate(25 78 42)" filter="url(#glow-filter)"/>
+      <!-- bow center -->
+      <circle cx="60" cy="42" r="8" fill="#ff6fa8"/>
+      <!-- sparkle dots -->
+      <circle cx="30" cy="80" r="3" fill="#fff7" />
+      <circle cx="85" cy="70" r="2" fill="#fff9" />
+      <circle cx="70" cy="95" r="2.5" fill="#fff7" />
+    </svg>
+    <span class="gift-label">[ CLICK TO UNLOCK ]</span>
+  </div>
+</div>
+
+<!-- ════ SCENE 2: REVEAL ════ -->
+<div class="scene" id="scene-reveal">
+  <div id="pastel-bg"></div>
+  <div class="reveal-inner" style="position:relative;z-index:10;">
+    <h1 class="reveal-heading">Happy Birthday,<br><span>Akka</span> ❤️</h1>
+
+    <div class="collage-frame" id="collage-frame">
+      <img src="hello.jpeg" alt="Akka Collage" class="collage-img"
+           onerror="this.style.background='linear-gradient(135deg,#ffd6e0,#e6ccff)';this.style.minHeight='360px';this.removeAttribute('src');">
+      <!-- Floating hearts -->
+      <span class="heart-float" style="left:10%;animation-duration:3.2s;animation-delay:0s;">💗</span>
+      <span class="heart-float" style="left:30%;animation-duration:2.8s;animation-delay:0.7s;">✨</span>
+      <span class="heart-float" style="left:55%;animation-duration:3.5s;animation-delay:1.2s;">💜</span>
+      <span class="heart-float" style="left:75%;animation-duration:2.6s;animation-delay:0.4s;">🌸</span>
+      <span class="heart-float" style="left:88%;animation-duration:3.1s;animation-delay:1.8s;">💖</span>
+    </div>
+
+    <div class="message-card">
+      You are not just my sister —<br>
+      you are my <span class="highlight">first friend</span>,<br>
+      my <span class="highlight">strongest support system</span>,<br>
+      and the reason so many of my memories<br>
+      are truly <span class="highlight">special</span>.<br><br>
+      I feel so lucky to have you in my life.<br>
+      <strong style="font-style:normal;color:#b0398c;">Stay happy always. 🌸</strong>
+    </div>
+
+    <div class="signature">
+      Designed with love by your brother &nbsp;<strong>💻❤️</strong>
+    </div>
+  </div>
+</div>
+
+<!-- Music toggle -->
+<div class="music-note" id="music-toggle" onclick="toggleMusic()" title="Toggle Music">🎵</div>
+
+<!-- Audio -->
+<audio id="bg-music" loop>
+  <source src="https://cdn.pixabay.com/audio/2022/03/15/audio_c8c8a73467.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+/* ───────────────────────────────────────────
+   1.  PARTICLE CANVAS  (stars + floating orbs)
+─────────────────────────────────────────── */
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let W, H, stars = [], orbs = [];
+
+function resizeCanvas() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+function makeStar() {
+  return {
+    x: Math.random() * W, y: Math.random() * H,
+    r: Math.random() * 1.2 + 0.3,
+    a: Math.random(),
+    speed: Math.random() * 0.4 + 0.1,
+    dir: Math.random() > 0.5 ? 1 : -1
+  };
+}
+function makeOrb() {
+  return {
+    x: Math.random() * W, y: Math.random() * H,
+    r: Math.random() * 60 + 20,
+    a: Math.random() * 0.08 + 0.02,
+    speedX: (Math.random() - 0.5) * 0.3,
+    speedY: (Math.random() - 0.5) * 0.3,
+    hue: Math.random() * 60 + 300   // pink–purple range
+  };
+}
+
+for (let i = 0; i < 160; i++) stars.push(makeStar());
+for (let i = 0; i < 6; i++) orbs.push(makeOrb());
+
+let terminalMode = true;
+
+function drawCanvas() {
+  ctx.clearRect(0, 0, W, H);
+
+  if (terminalMode) {
+    // dark background
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+
+    // draw stars in terminal mode
+    stars.forEach(s => {
+      s.a += s.speed * 0.01 * s.dir;
+      if (s.a > 1 || s.a < 0) s.dir *= -1;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0,255,180,${s.a * 0.6})`;
+      ctx.fill();
+    });
+  } else {
+    // pastel mode — just soft glowing orbs
+    orbs.forEach(o => {
+      o.x += o.speedX; o.y += o.speedY;
+      if (o.x < -o.r) o.x = W + o.r;
+      if (o.x > W + o.r) o.x = -o.r;
+      if (o.y < -o.r) o.y = H + o.r;
+      if (o.y > H + o.r) o.y = -o.r;
+
+      const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r);
+      g.addColorStop(0, `hsla(${o.hue},90%,80%,${o.a})`);
+      g.addColorStop(1, 'transparent');
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+      ctx.fillStyle = g;
+      ctx.fill();
+    });
+  }
+
+  requestAnimationFrame(drawCanvas);
+}
+drawCanvas();
+
+/* ───────────────────────────────────────────
+   0.  NAME GATE
+─────────────────────────────────────────── */
+// Add any allowed names here (case-insensitive)
+const ALLOWED_NAMES = ['akka', 'akka!', 'sister', 'didi'];
+
+function checkName() {
+  const val = document.getElementById('name-input').value.trim().toLowerCase();
+  const errEl = document.getElementById('gate-error');
+
+  if (ALLOWED_NAMES.includes(val)) {
+    errEl.classList.remove('show');
+    // Transition to terminal
+    const gate = document.getElementById('scene-gate');
+    gate.style.transition = 'opacity 0.6s ease';
+    gate.style.opacity = '0';
+    gate.style.pointerEvents = 'none';
+    setTimeout(() => {
+      gate.classList.remove('active');
+      const terminal = document.getElementById('scene-terminal');
+      terminal.classList.add('active');
+      setTimeout(typeNextLine, 600);
+    }, 600);
+  } else {
+    errEl.classList.remove('show');
+    void errEl.offsetWidth; // re-trigger animation
+    errEl.classList.add('show');
+    document.getElementById('name-input').value = '';
+    document.getElementById('name-input').focus();
+  }
+}
+
+/* ───────────────────────────────────────────
+   1.  TYPING EFFECT
+─────────────────────────────────────────── */
+const lines = [
+  { text: 'Initializing Secure Birthday Access...',  color: '#00ffcc', delay: 40 },
+  { text: '',                                          color: '#00ffcc', delay: 0  },
+  { text: 'Connecting to Sister_Memory_Server...',    color: '#00ccaa', delay: 40 },
+  { text: '',                                          color: '',        delay: 0  },
+  { text: 'PROGRESS BAR',                             color: '#f5c842', delay: 0, progressBar: true },
+  { text: '',                                          color: '',        delay: 0  },
+  { text: 'Access Granted ✔',                         color: '#00ff88', delay: 50 },
+  { text: 'Welcome User: Loving Brother 💻',          color: '#ff6fa8', delay: 60 },
+];
+
+const typedEl = document.getElementById('typed-text');
+let lineIdx = 0;
+
+function typeNextLine() {
+  if (lineIdx >= lines.length) {
+    // Show gift
+    document.getElementById('gift-trigger').style.display = 'flex';
+    return;
+  }
+  const line = lines[lineIdx++];
+
+  // blank line
+  if (!line.text) {
+    typedEl.querySelector('.cursor-blink')?.before(document.createTextNode('\n'));
+    setTimeout(typeNextLine, 200);
+    return;
+  }
+
+  // progress bar special
+  if (line.progressBar) {
+    typeProgressBar(() => setTimeout(typeNextLine, 400));
+    return;
+  }
+
+  // normal typed line
+  const span = document.createElement('span');
+  span.style.color = line.color;
+  const cursor = typedEl.querySelector('.cursor-blink');
+  typedEl.insertBefore(span, cursor);
+  typedEl.insertBefore(document.createTextNode(''), cursor); // will add newline after
+
+  let ci = 0;
+  function typeChar() {
+    if (ci < line.text.length) {
+      span.textContent += line.text[ci++];
+      setTimeout(typeChar, line.delay + Math.random() * 20);
+    } else {
+      span.after(document.createTextNode('\n'));
+      setTimeout(typeNextLine, 350);
+    }
+  }
+  typeChar();
+}
+
+function typeProgressBar(done) {
+  const span = document.createElement('span');
+  span.style.color = '#f5c842';
+  const cursor = typedEl.querySelector('.cursor-blink');
+  typedEl.insertBefore(span, cursor);
+
+  const prefix = 'Decrypting Memories ';
+  const blocks = 20;
+  let filled = 0;
+  span.textContent = prefix + '[' + '░'.repeat(blocks) + '] 0%';
+
+  const interval = setInterval(() => {
+    filled++;
+    const pct = Math.round((filled / blocks) * 100);
+    const bar = '█'.repeat(filled) + '░'.repeat(blocks - filled);
+    span.textContent = prefix + '[' + bar + '] ' + pct + '%';
+    if (filled >= blocks) {
+      clearInterval(interval);
+      span.after(document.createTextNode('\n'));
+      done();
+    }
+  }, 60);
+}
+
+// Typing starts after name gate passes (see checkName)
+
+/* ───────────────────────────────────────────
+   3.  OPEN GIFT
+─────────────────────────────────────────── */
+function openGift() {
+  // Burst flash
+  const burst = document.getElementById('burst-overlay');
+  burst.classList.add('flash');
+  setTimeout(() => {
+    burst.style.transition = 'opacity 0.8s ease';
+    burst.style.opacity = '0';
+  }, 150);
+
+  // Firework sparkles
+  launchFireworks();
+
+  setTimeout(() => {
+    // Switch scenes
+    terminalMode = false;
+    document.getElementById('scene-terminal').style.opacity = '0';
+    document.getElementById('scene-terminal').style.pointerEvents = 'none';
+
+    setTimeout(() => {
+      document.getElementById('scene-reveal').classList.add('active');
+    }, 400);
+
+    burst.style.transition = '';
+    burst.style.opacity = '';
+    burst.classList.remove('flash');
+  }, 500);
+
+  // Start music
+  const music = document.getElementById('bg-music');
+  music.volume = 0.5;
+  music.play().catch(() => {});
+}
+
+/* ───────────────────────────────────────────
+   4.  FIREWORK SPARKLES (CSS elements)
+─────────────────────────────────────────── */
+function launchFireworks() {
+  const colors = ['#ff6fa8','#c084fc','#f5c842','#ffffff','#ffd6e0','#a78bfa'];
+  const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+
+  for (let i = 0; i < 80; i++) {
+    const el = document.createElement('div');
+    el.className = 'sparkle-el';
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = Math.random() * Math.min(cx, cy) * 0.9;
+    const size  = Math.random() * 8 + 3;
+    const dur   = Math.random() * 1200 + 600;
+
+    el.style.cssText = `
+      left:${cx + Math.cos(angle)*dist}px;
+      top:${cy + Math.sin(angle)*dist}px;
+      width:${size}px; height:${size}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      box-shadow:0 0 ${size*2}px ${colors[Math.floor(Math.random()*colors.length)]};
+      animation-duration:${dur}ms;
+      animation-delay:${Math.random()*300}ms;
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), dur + 600);
+  }
+}
+
+/* ───────────────────────────────────────────
+   5.  CONTINUOUS REVEAL SPARKLES
+─────────────────────────────────────────── */
+function startRevealSparkles() {
+  setInterval(() => {
+    if (terminalMode) return;
+    const el = document.createElement('div');
+    el.className = 'sparkle-el';
+    const size = Math.random() * 6 + 2;
+    const dur  = Math.random() * 3000 + 2000;
+    el.style.cssText = `
+      left:${Math.random()*100}vw;
+      top:${Math.random()*100}vh;
+      width:${size}px; height:${size}px;
+      background:${['#ff6fa8','#c084fc','#fff','#f5c842'][Math.floor(Math.random()*4)]};
+      box-shadow:0 0 ${size*3}px #ff6fa8;
+      animation-duration:${dur}ms;
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), dur + 500);
+  }, 180);
+}
+startRevealSparkles();
+
+/* ───────────────────────────────────────────
+   6.  MUSIC TOGGLE
+─────────────────────────────────────────── */
+function toggleMusic() {
+  const music = document.getElementById('bg-music');
+  const btn   = document.getElementById('music-toggle');
+  if (music.paused) {
+    music.play();
+    btn.textContent = '🎵';
+    btn.classList.remove('muted');
+  } else {
+    music.pause();
+    btn.textContent = '🔇';
+    btn.classList.add('muted');
+  }
+}
+</script>
+</body>
+</html>
